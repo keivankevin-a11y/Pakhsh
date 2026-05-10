@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>پخش اسنک</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #F5F5F7;
+  --white: #FFFFFF;
+  --accent: #FF9500;
+  --accent-dark: #CC7700;
+  --blue: #007AFF;
+  --green: #34C759;
+  --red: #FF3B30;
+  --purple: #AF52DE;
+  --text: #1C1C1E;
+  --text2: #6C6C70;
+  --text3: #AEAEB2;
+  --border: #E5E5EA;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: 'Vazirmatn', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+/* LOADING */
+#loading-screen {
+  position: fixed; inset: 0; background: var(--white);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 999;
+}
+#loading-screen .logo { font-size: 48px; margin-bottom: 12px; }
+#loading-screen p { color: var(--text2); font-size: 14px; }
+.spinner {
+  width: 32px; height: 32px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin .8s linear infinite; margin: 16px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.topbar {
+  background: var(--white); padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.topbar-title { font-size: 18px; font-weight: 800; }
+.topbar-sub { font-size: 12px; color: var(--text2); }
+.role-btn {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 20px; padding: 6px 12px;
+  font-family: 'Vazirmatn', sans-serif; font-size: 12px;
+  font-weight: 600; color: var(--text); cursor: pointer;
+}
+.sync-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green); display: inline-block; margin-left: 4px;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.bottomnav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex; z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-tab {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; padding: 10px 4px 8px;
+  cursor: pointer; border: none; background: none;
+  font-family: 'Vazirmatn', sans-serif; transition: all .2s;
+}
+.nav-tab .ico { font-size: 22px; margin-bottom: 3px; }
+.nav-tab .lbl { font-size: 10px; color: var(--text3); font-weight: 500; }
+.nav-tab.active .lbl { color: var(--accent); font-weight: 700; }
+.nav-tab.active .ico { transform: scale(1.15); }
+
+.page { display: none; padding: 16px; }
+.page.active { display: block; }
+
+.card {
+  background: var(--white); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.card-title {
+  font-size: 13px; font-weight: 700; color: var(--text2);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 6px;
+}
+
+.stats-row {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 10px; margin-bottom: 12px;
+}
+.stat-box {
+  background: var(--white); border-radius: var(--radius);
+  padding: 14px 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.stat-box .s-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.stat-box .s-val { font-size: 22px; font-weight: 800; }
+.stat-box .s-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: var(--text2); margin-bottom: 5px; }
+.inp {
+  width: 100%; background: var(--bg);
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 12px 14px; font-family: 'Vazirmatn', sans-serif;
+  font-size: 15px; color: var(--text); transition: border .2s;
+  -webkit-appearance: none;
+}
+.inp:focus { outline: none; border-color: var(--accent); background: var(--white); }
+select.inp { cursor: pointer; }
+
+.qty-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.qty-row:last-child { border-bottom: none; }
+.qty-name { font-weight: 600; font-size: 14px; }
+.qty-price { font-size: 11px; color: var(--text3); }
+.qty-ctrl { display: flex; align-items: center; gap: 10px; }
+.qty-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: none; font-size: 18px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s;
+}
+.qty-btn.minus { background: var(--border); color: var(--text); }
+.qty-btn.plus { background: var(--accent); color: #fff; }
+.qty-btn:active { transform: scale(0.9); }
+.qty-num { font-size: 16px; font-weight: 700; min-width: 24px; text-align: center; }
+
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 15px; border-radius: var(--radius-sm);
+  border: none; font-family: 'Vazirmatn', sans-serif;
+  font-size: 15px; font-weight: 700; cursor: pointer; transition: all .2s;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-secondary { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); }
+.btn-green { background: var(--green); color: #fff; }
+.btn-red { background: rgba(255,59,48,.1); color: var(--red); }
+.btn-sm { width: auto; padding: 7px 14px; font-size: 12px; border-radius: 20px; display: inline-flex; }
+
+.list-item {
+  background: var(--white); border-radius: var(--radius);
+  padding: 14px 16px; margin-bottom: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.list-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.list-body { flex: 1; min-width: 0; }
+.list-title { font-weight: 700; font-size: 15px; margin-bottom: 3px; }
+.list-sub { font-size: 12px; color: var(--text2); line-height: 1.6; }
+.list-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+.list-amount { font-weight: 800; font-size: 14px; }
+
+.badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.b-green { background: rgba(52,199,89,.12); color: var(--green); }
+.b-orange { background: rgba(255,149,0,.12); color: var(--accent); }
+.b-red { background: rgba(255,59,48,.12); color: var(--red); }
+.b-blue { background: rgba(0,122,255,.12); color: var(--blue); }
+.b-gray { background: rgba(174,174,178,.2); color: var(--text3); }
+
+.alert {
+  padding: 12px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; margin-bottom: 10px;
+  display: flex; gap: 8px; align-items: flex-start; line-height: 1.5;
+}
+.alert-warn { background: rgba(255,149,0,.1); color: #8a5000; }
+.alert-danger { background: rgba(255,59,48,.1); color: #c0392b; }
+.alert-ok { background: rgba(52,199,89,.1); color: #1a7a38; }
+
+.rank-item {
+  background: var(--white); border-radius: var(--radius);
+  padding: 14px 16px; margin-bottom: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.rank-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.rank-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; flex-shrink: 0;
+}
+.r1 { background: #FFD700; color: #5a4000; }
+.r2 { background: #C0C0C0; color: #3a3a3a; }
+.r3 { background: #CD7F32; color: #fff; }
+.rn { background: var(--bg); color: var(--text2); }
+.rank-name { font-weight: 700; font-size: 15px; flex: 1; }
+.rank-rate { font-weight: 800; font-size: 13px; color: var(--accent); }
+.bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width .6s; }
+
+.total-bar {
+  position: sticky; bottom: 80px;
+  background: var(--text); color: var(--white);
+  margin: 0 -16px; padding: 14px 20px;
+  display: flex; justify-content: space-between; align-items: center; z-index: 50;
+}
+.total-bar .t-label { font-size: 13px; opacity: .7; }
+.total-bar .t-val { font-size: 20px; font-weight: 800; color: var(--accent); }
+
+.sec-header {
+  font-size: 13px; font-weight: 700; color: var(--text2);
+  padding: 0 4px 8px; margin-bottom: 2px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+.empty { text-align: center; padding: 40px 20px; }
+.empty .e-ico { font-size: 48px; margin-bottom: 12px; }
+.empty p { color: var(--text2); font-size: 14px; }
+
+.modal-bg {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.5); z-index: 200;
+  align-items: flex-end; justify-content: center;
+}
+.modal-bg.open { display: flex; }
+.modal-sheet {
+  background: var(--white); border-radius: 24px 24px 0 0;
+  padding: 20px 20px 40px; width: 100%;
+  animation: slideUp .25s ease; max-height: 90vh; overflow-y: auto;
+}
+@keyframes slideUp { from { transform: translateY(100%); } }
+.modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+.modal-title { font-size: 17px; font-weight: 800; margin-bottom: 16px; }
+
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.role-card {
+  background: var(--bg); border-radius: var(--radius-sm);
+  padding: 16px; text-align: center; cursor: pointer;
+  border: 2px solid transparent; transition: all .2s;
+}
+.role-card.selected { border-color: var(--accent); background: rgba(255,149,0,.05); }
+.role-card .r-ico { font-size: 28px; margin-bottom: 6px; }
+.role-card .r-name { font-size: 13px; font-weight: 700; }
+
+.perf-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.perf-label { font-size: 12px; font-weight: 600; min-width: 70px; }
+.perf-bar-wrap { flex: 1; }
+.perf-val { font-size: 12px; font-weight: 700; min-width: 45px; text-align: left; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="logo">🍿</div>
+  <p>در حال اتصال به سرور...</p>
+  <div class="spinner"></div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div>
+    <div class="topbar-title">🍿 پخش اسنک <span class="sync-dot" id="sync-dot" style="display:none"></span></div>
+    <div class="topbar-sub" id="role-label">مدیر سیستم</div>
+  </div>
+  <button class="role-btn" onclick="openRoleModal()">تغییر نقش ▾</button>
+</div>
+
+<!-- PAGES -->
+<div class="page active" id="page-dash">
+  <div class="stats-row" id="dash-stats"></div>
+  <div class="sec-header">⚠️ هشدارها</div>
+  <div id="dash-alerts"></div>
+  <div class="sec-header">📦 موجودی بیرون</div>
+  <div class="card" id="dash-stock"></div>
+  <div class="sec-header">📋 آخرین سفارشات</div>
+  <div id="dash-orders"></div>
+</div>
+
+<div class="page" id="page-order">
+  <div class="card">
+    <div class="card-title">📋 سفارش جدید</div>
+    <div class="field"><label>تاریخ شمسی</label><input class="inp" id="o-date" placeholder="۱۴۰۴/۰۲/۱۹" value="۱۴۰۴/۰۲/۱۹"></div>
+    <div class="field"><label>ویزیتور</label>
+      <select class="inp" id="o-viz">
+        <option value="">انتخاب کنید</option>
+        <option>خانم فرزین</option>
+        <option>خانم قلی‌زاده</option>
+      </select>
+    </div>
+    <div class="field"><label>مشتری</label><select class="inp" id="o-cust"></select></div>
+    <div class="field"><label>نوع پرداخت</label>
+      <select class="inp" id="o-pay" onchange="checkCredit()">
+        <option>نقد</option><option>نسیه</option><option>چک</option>
+      </select>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📦 تعداد کالا</div>
+    <div id="qty-inputs"></div>
+  </div>
+  <div id="credit-warn" class="alert alert-danger" style="display:none"></div>
+  <div class="total-bar">
+    <span class="t-label">جمع کل</span>
+    <span class="t-val" id="o-total">۰ ریال</span>
+  </div>
+  <div style="margin-top:12px">
+    <button class="btn btn-primary" id="submit-order-btn" onclick="submitOrder()">✅ ثبت سفارش</button>
+  </div>
+  <div style="margin-top:16px">
+    <div class="sec-header">سفارشات ثبت شده <button class="btn-sm btn btn-secondary" style="padding:4px 10px;font-size:11px" onclick="loadOrders()">🔄</button></div>
+    <div id="orders-list"></div>
+  </div>
+</div>
+
+<div class="page" id="page-delivery">
+  <div class="stats-row">
+    <div class="stat-box"><div class="s-label">در انتظار</div><div class="s-val" id="d-pending" style="color:var(--accent)">۰</div></div>
+    <div class="stat-box"><div class="s-label">تحویل شده</div><div class="s-val" id="d-done" style="color:var(--green)">۰</div></div>
+  </div>
+  <div class="sec-header">🚚 لیست تحویل <button class="btn-sm btn btn-secondary" style="padding:4px 10px;font-size:11px" onclick="loadDelivery()">🔄</button></div>
+  <div id="delivery-list"></div>
+</div>
+
+<div class="page" id="page-accounts">
+  <div class="stats-row">
+    <div class="stat-box"><div class="s-label">کل مطالبات</div><div class="s-val" id="a-total" style="color:var(--accent)">۰</div><div class="s-sub">میلیون ریال</div></div>
+    <div class="stat-box"><div class="s-label">مانده نسیه</div><div class="s-val" id="a-nesie" style="color:var(--red)">۰</div><div class="s-sub">میلیون ریال</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">💳 ثبت پرداخت</div>
+    <div class="field"><label>مشتری</label><select class="inp" id="pay-cust"></select></div>
+    <div class="field"><label>مبلغ (ریال)</label><input class="inp" id="pay-amt" type="number" placeholder="مبلغ پرداختی"></div>
+    <div class="field"><label>نوع</label>
+      <select class="inp" id="pay-type"><option>نقد</option><option>چک</option><option>کارت</option></select>
+    </div>
+    <div class="field"><label>تاریخ</label><input class="inp" id="pay-date" placeholder="۱۴۰۴/۰۲/۱۹"></div>
+    <button class="btn btn-primary" onclick="submitPayment()">✅ ثبت پرداخت</button>
+  </div>
+  <div class="sec-header">وضعیت حساب مشتریان</div>
+  <div id="accounts-list"></div>
+</div>
+
+<div class="page" id="page-more">
+  <div class="card">
+    <div class="card-title">🏆 رتبه‌بندی مشتریان</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.7">بر اساس میانگین فروش روزانه — قدیمی/جدید بودن فرقی نمی‌کند</p>
+    <div id="ranking-list"></div>
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--text2)">میانگین کل:</span>
+      <span id="avg-all" style="font-weight:800;color:var(--accent)"></span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📈 عملکرد ویزیتورها</div>
+    <div id="perf-section"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🏪 مشتریان</div>
+    <div id="cust-mini-list"></div>
+    <div class="divider"></div>
+    <button class="btn btn-secondary" onclick="openAddCustomer()">➕ افزودن مشتری</button>
+  </div>
+  <div class="card">
+    <div class="card-title">↩️ ثبت مرجوعی</div>
+    <div class="field"><label>مشتری</label><select class="inp" id="ret-cust"></select></div>
+    <div class="field"><label>تاریخ</label><input class="inp" id="ret-date" placeholder="۱۴۰۴/۰۲/۱۹"></div>
+    <div class="field"><label>دلیل</label>
+      <select class="inp" id="ret-reason">
+        <option>آسیب‌دیدگی</option><option>انقضا</option><option>اشتباه در سفارش</option><option>سایر</option>
+      </select>
+    </div>
+    <div id="ret-qty-inputs"></div>
+    <div class="divider"></div>
+    <button class="btn btn-red" onclick="submitReturn()">↩️ ثبت مرجوعی</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottomnav">
+  <button class="nav-tab active" onclick="showPage('dash',this)"><span class="ico">📊</span><span class="lbl">داشبورد</span></button>
+  <button class="nav-tab" onclick="showPage('order',this)"><span class="ico">📋</span><span class="lbl">سفارش</span></button>
+  <button class="nav-tab" onclick="showPage('delivery',this)"><span class="ico">🚚</span><span class="lbl">موزع</span></button>
+  <button class="nav-tab" onclick="showPage('accounts',this)"><span class="ico">💰</span><span class="lbl">حساب</span></button>
+  <button class="nav-tab" onclick="showPage('more',this)"><span class="ico">⋯</span><span class="lbl">بیشتر</span></button>
+</div>
+
+<!-- ROLE MODAL -->
+<div class="modal-bg" id="role-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">نقش خود را انتخاب کنید</div>
+    <div class="role-grid">
+      <div class="role-card selected" onclick="setRole('manager',this)"><div class="r-ico">👤</div><div class="r-name">مدیر</div></div>
+      <div class="role-card" onclick="setRole('farzin',this)"><div class="r-ico">👩</div><div class="r-name">خانم فرزین</div></div>
+      <div class="role-card" onclick="setRole('gholi',this)"><div class="r-ico">👩</div><div class="r-name">خانم قلی‌زاده</div></div>
+      <div class="role-card" onclick="setRole('bakhshi',this)"><div class="r-ico">🚚</div><div class="r-name">آقای بخشی</div></div>
+    </div>
+    <div class="divider"></div>
+    <button class="btn btn-primary" onclick="closeRoleModal()">تأیید</button>
+  </div>
+</div>
+
+<!-- ADD CUSTOMER MODAL -->
+<div class="modal-bg" id="cust-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">➕ مشتری جدید</div>
+    <div class="field"><label>نام فروشگاه</label><input class="inp" id="cn-name" placeholder="نام فروشگاه"></div>
+    <div class="field"><label>نام خیابان</label><input class="inp" id="cn-street" placeholder="خیابان اصلی"></div>
+    <div class="field"><label>آدرس کامل</label><input class="inp" id="cn-addr" placeholder="آدرس دقیق"></div>
+    <div class="field"><label>زون</label>
+      <select class="inp" id="cn-zone">
+        <option value="">انتخاب زون</option>
+        <option>زون ۱</option><option>زون ۲</option><option>زون ۳</option>
+        <option>زون ۴</option><option>زون ۵</option><option>زون ۶</option><option>زون ۷</option>
+      </select>
+    </div>
+    <div class="field"><label>تلفن</label><input class="inp" id="cn-phone" placeholder="شماره تماس"></div>
+    <div class="field"><label>مختصات نقشه</label><input class="inp" id="cn-coords" placeholder="35.12, 51.56"></div>
+    <div class="field"><label>تاریخ شروع همکاری</label><input class="inp" id="cn-start" placeholder="۱۴۰۴/۰۲/۱۹"></div>
+    <div class="field"><label>وضعیت اعتبار</label>
+      <select class="inp" id="cn-credit"><option>خوش‌حساب</option><option>متوسط</option><option>بدحساب</option></select>
+    </div>
+    <div class="field"><label>یادداشت ویزیتور</label><input class="inp" id="cn-note" placeholder="نکات خاص این مغازه..."></div>
+    <div class="divider"></div>
+    <button class="btn btn-primary" onclick="addCustomer()">✅ ثبت مشتری</button>
+    <button class="btn btn-secondary" style="margin-top:8px" onclick="closeCustModal()">انصراف</button>
+  </div>
+</div>
+
+<script>
+// ══ SUPABASE CONFIG ══
+const SUPABASE_URL = 'https://mojdipuleojcjasseama.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vamRpcHVsZW9qY2phc3NlYW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNTQzOTIsImV4cCI6MjA5MzkzMDM5Mn0.6nTm1ymBHlzqDR8v84bUgelnEIC6K0Sac_zXoStN6YY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ══ PRODUCTS ══
+const PRODUCTS = [
+  {name:'کلاسیک', price:260694},
+  {name:'شیرین',  price:325125},
+  {name:'میوه‌ای',price:360990},
+  {name:'ترش',    price:289800},
+  {name:'سرکه‌ای',price:292644},
+  {name:'تند',    price:269604},
+];
+
+// ══ LOCAL CACHE ══
+let customers = [], orders = [], payments = [], returns_list = [];
+let qtyValues = [0,0,0,0,0,0];
+let retQty = [0,0,0,0,0,0];
+let currentRole = 'manager';
+
+// ══ HELPERS ══
+const fmt = n => Number(n||0).toLocaleString('fa-IR');
+const orderTotal = qty => qty.reduce((s,q,i)=>s+q*PRODUCTS[i].price,0);
+
+function shamsiDays(start, end) {
+  const parse = s => {
+    if(!s) return 0;
+    const d = s.replace(/[۰-۹]/g,c=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(c)).split('/').map(Number);
+    return (d[0]||0)*365 + (d[1]||0)*30 + (d[2]||0);
+  };
+  return Math.max(parse(end) - parse(start), 1);
+}
+
+function creditBadge(c) {
+  if(c==='خوش‌حساب') return `<span class="badge b-green">خوش‌حساب</span>`;
+  if(c==='بدحساب') return `<span class="badge b-red">بدحساب</span>`;
+  return `<span class="badge b-orange">متوسط</span>`;
+}
+
+function statusBadge(s) {
+  if(s==='تحویل داده شد') return `<span class="badge b-green">تحویل شد</span>`;
+  if(s==='در انتظار') return `<span class="badge b-orange">در انتظار</span>`;
+  return `<span class="badge b-gray">لغو</span>`;
+}
+
+function custBuy(id) {
+  return orders.filter(o=>o.customer_id===id&&o.status!=='لغو شد').reduce((s,o)=>s+orderTotal(o.qty||[]),0);
+}
+function custPaid(id) {
+  return payments.filter(p=>p.customer_id===id).reduce((s,p)=>s+p.amount,0);
+}
+function custBalance(id) { return custBuy(id)-custPaid(id); }
+function custQty(id) {
+  return orders.filter(o=>o.customer_id===id&&o.status!=='لغو شد').reduce((s,o)=>s+(o.qty||[]).reduce((a,b)=>a+b,0),0);
+}
+function nesieQty(custId) {
+  return orders.filter(o=>o.customer_id===custId&&o.payment_type==='نسیه'&&o.status!=='لغو شد').reduce((s,o)=>s+(o.qty||[]).reduce((a,b)=>a+b,0),0);
+}
+
+function buildCustSelect(id) {
+  const el = document.getElementById(id); if(!el) return;
+  el.innerHTML = '<option value="">انتخاب مشتری</option>' +
+    customers.filter(c=>c.active).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+// ══ INIT: CREATE TABLES IF NEEDED ══
+async function initDB() {
+  // Try to fetch customers - if table doesn't exist, create it via insert
+  try {
+    // Create tables by attempting inserts with upsert
+    // Check if we have data
+    const {data: custs} = await sb.from('customers').select('*').limit(1);
+    if(custs !== null) {
+      // Tables exist, load data
+      await loadAllData();
+      return;
+    }
+  } catch(e) {}
+
+  // Tables might not exist - show setup message
+  document.getElementById('loading-screen').innerHTML = `
+    <div class="logo">🍿</div>
+    <p style="font-size:13px;color:var(--text2);text-align:center;padding:0 20px;line-height:1.8">
+      برای راه‌اندازی اولیه<br>باید جداول دیتابیس ساخته شوند.<br><br>
+      لطفاً به <strong>supabase.com</strong> برو و<br>در بخش <strong>SQL Editor</strong> کد زیر را اجرا کن:
+    </p>
+    <div style="background:#f5f5f7;border-radius:10px;padding:12px;margin:16px;font-size:10px;font-family:monospace;text-align:left;direction:ltr;max-width:90%;overflow-x:auto">
+      <button onclick="copySQL()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;margin-bottom:8px;width:100%">📋 کپی کن</button>
+      <pre id="sql-code" style="white-space:pre-wrap;font-size:9px">${getSetupSQL()}</pre>
+    </div>
+    <button onclick="retryInit()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-family:Vazirmatn,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px">✅ اجرا کردم، ادامه بده</button>
+  `;
+}
+
+function getSetupSQL() {
+  return `create table if not exists customers (
+  id bigserial primary key,
+  name text not null,
+  addr text, street text, zone text,
+  phone text, coords text,
+  start_date text, credit text default 'خوش‌حساب',
+  active boolean default true, note text,
+  created_at timestamptz default now()
+);
+
+create table if not exists orders (
+  id bigserial primary key,
+  date text, viz text,
+  customer_id bigint references customers(id),
+  qty jsonb, payment_type text, status text default 'در انتظار',
+  created_at timestamptz default now()
+);
+
+create table if not exists payments (
+  id bigserial primary key,
+  customer_id bigint references customers(id),
+  amount bigint, payment_type text, date text,
+  created_at timestamptz default now()
+);
+
+create table if not exists returns (
+  id bigserial primary key,
+  customer_id bigint references customers(id),
+  date text, reason text, qty jsonb,
+  created_at timestamptz default now()
+);
+
+alter table customers enable row level security;
+alter table orders enable row level security;
+alter table payments enable row level security;
+alter table returns enable row level security;
+
+create policy "allow all" on customers for all using (true) with check (true);
+create policy "allow all" on orders for all using (true) with check (true);
+create policy "allow all" on payments for all using (true) with check (true);
+create policy "allow all" on returns for all using (true) with check (true);
+
+insert into customers (name,addr,street,zone,phone,coords,start_date,credit,active,note) values
+('فروشگاه سعادت','خیابان امام، پ ۱۲','امام','زون ۱','09121111111','35.70,51.39','۱۴۰۳/۰۷/۰۱','خوش‌حساب',true,'مدیر آقای احمدی'),
+('سوپرمارکت نور','بلوار شهید، پ ۴۵','شهید','زون ۲','09122222222','35.71,51.41','۱۴۰۳/۰۹/۱۵','متوسط',true,''),
+('فروشگاه بهار','خیابان ولیعصر، پ ۷۸','ولیعصر','زون ۱','09123333333','35.72,51.43','۱۴۰۴/۰۱/۰۵','خوش‌حساب',true,'میوه‌ای زیاد');`;
+}
+
+function copySQL() {
+  navigator.clipboard.writeText(getSetupSQL()).then(()=>alert('✅ کد کپی شد! برو SQL Editor و Paste کن'));
+}
+
+async function retryInit() {
+  document.getElementById('loading-screen').innerHTML = `
+    <div class="logo">🍿</div>
+    <p>در حال اتصال...</p>
+    <div class="spinner"></div>
+  `;
+  await loadAllData();
+}
+
+// ══ LOAD DATA ══
+async function loadAllData() {
+  try {
+    const [c, o, p, r] = await Promise.all([
+      sb.from('customers').select('*').order('id'),
+      sb.from('orders').select('*').order('created_at', {ascending:false}),
+      sb.from('payments').select('*'),
+      sb.from('returns').select('*'),
+    ]);
+    customers = c.data || [];
+    orders = (o.data || []).map(ord => ({...ord, qty: ord.qty || [0,0,0,0,0,0]}));
+    payments = p.data || [];
+    returns_list = r.data || [];
+
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('sync-dot').style.display = 'inline-block';
+    buildCustSelect('o-cust');
+    buildCustSelect('pay-cust');
+    buildCustSelect('ret-cust');
+    renderQtyInputs();
+    buildRetQty();
+    renderDash();
+
+    // Realtime sync
+    sb.channel('all-changes')
+      .on('postgres_changes', {event:'*', schema:'public'}, () => loadAllData())
+      .subscribe();
+
+  } catch(e) {
+    document.getElementById('loading-screen').innerHTML = `
+      <div class="logo">⚠️</div>
+      <p style="color:var(--red);font-size:13px;padding:0 20px;text-align:center">خطا در اتصال:<br>${e.message}</p>
+      <button onclick="retryInit()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-family:Vazirmatn,sans-serif;font-weight:700;cursor:pointer;margin-top:16px">🔄 تلاش مجدد</button>
+    `;
+  }
+}
+
+// ══ NAVIGATION ══
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(id==='dash') renderDash();
+  if(id==='order') { buildCustSelect('o-cust'); renderOrdersList(); }
+  if(id==='delivery') renderDelivery();
+  if(id==='accounts') { buildCustSelect('pay-cust'); renderAccounts(); }
+  if(id==='more') { buildCustSelect('ret-cust'); renderMore(); }
+}
+
+// ══ DASHBOARD ══
+function renderDash() {
+  const active = customers.filter(c=>c.active);
+  const totalSales = orders.reduce((s,o)=>s+orderTotal(o.qty),0);
+  const pending = orders.filter(o=>o.status==='در انتظار').length;
+  const totalBal = active.reduce((s,c)=>s+Math.max(0,custBalance(c.id)),0);
+
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-box"><div class="s-label">کل فروش</div><div class="s-val" style="color:var(--accent)">${fmt(Math.round(totalSales/1000000))}</div><div class="s-sub">میلیون ریال</div></div>
+    <div class="stat-box"><div class="s-label">در انتظار تحویل</div><div class="s-val" style="color:var(--blue)">${pending}</div></div>
+    <div class="stat-box"><div class="s-label">مطالبات</div><div class="s-val" style="color:var(--red)">${fmt(Math.round(totalBal/1000000))}</div><div class="s-sub">میلیون ریال</div></div>
+    <div class="stat-box"><div class="s-label">مشتریان فعال</div><div class="s-val" style="color:var(--green)">${active.length}</div></div>
+  `;
+
+  const warns = [];
+  active.forEach(c => {
+    const nq = nesieQty(c.id);
+    if(nq>=4) warns.push({type:'danger', msg:`⚠️ ${c.name}: سقف نسیه پر شده`});
+    const lastO = orders.filter(o=>o.customer_id===c.id).slice(-1)[0];
+    if(lastO) {
+      const days = shamsiDays(lastO.date,'۱۴۰۴/۰۲/۱۹');
+      if(days>25) warns.push({type:'warn', msg:`🔔 ${c.name}: آخرین خرید ${days} روز پیش`});
+    }
+  });
+
+  document.getElementById('dash-alerts').innerHTML = warns.length
+    ? warns.map(w=>`<div class="alert alert-${w.type}">${w.msg}</div>`).join('')
+    : `<div class="alert alert-ok">✅ همه چیز مرتب است</div>`;
+
+  const stockRows = PRODUCTS.map((p,i)=>{
+    const q = orders.filter(o=>o.status==='در انتظار').reduce((s,o)=>s+(o.qty[i]||0),0);
+    return q>0?`<div class="qty-row"><div><div class="qty-name">${p.name}</div><div class="qty-price">${fmt(q*p.price)} ریال</div></div><span class="badge b-blue">${q} بسته</span></div>`:'';
+  }).join('');
+  document.getElementById('dash-stock').innerHTML = stockRows||'<p style="color:var(--text2);font-size:13px">موجودی بیرون ندارید</p>';
+
+  const recent = orders.slice(0,4);
+  document.getElementById('dash-orders').innerHTML = recent.map(o=>{
+    const c = customers.find(x=>x.id===o.customer_id);
+    return `<div class="list-item">
+      <div class="list-icon" style="background:rgba(255,149,0,.1)">📋</div>
+      <div class="list-body">
+        <div class="list-title">${c?c.name:'?'}</div>
+        <div class="list-sub">${o.date||''} · ${o.viz||''}</div>
+      </div>
+      <div class="list-right">
+        <div class="list-amount" style="color:var(--accent)">${fmt(orderTotal(o.qty))}</div>
+        ${statusBadge(o.status)}
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty"><div class="e-ico">📭</div><p>سفارشی ثبت نشده</p></div>';
+}
+
+// ══ ORDERS ══
+function renderQtyInputs() {
+  document.getElementById('qty-inputs').innerHTML = PRODUCTS.map((p,i)=>`
+    <div class="qty-row">
+      <div><div class="qty-name">${p.name}</div><div class="qty-price">${fmt(p.price)} ریال/بسته</div></div>
+      <div class="qty-ctrl">
+        <button class="qty-btn minus" onclick="changeQty(${i},-1)">−</button>
+        <span class="qty-num" id="qty-${i}">${qtyValues[i]}</span>
+        <button class="qty-btn plus" onclick="changeQty(${i},1)">+</button>
+      </div>
+    </div>`).join('');
+  updateTotal();
+}
+
+function changeQty(i,delta) {
+  qtyValues[i]=Math.max(0,qtyValues[i]+delta);
+  document.getElementById('qty-'+i).textContent=qtyValues[i];
+  updateTotal(); checkCredit();
+}
+
+function updateTotal() {
+  const t=qtyValues.reduce((s,q,i)=>s+q*PRODUCTS[i].price,0);
+  document.getElementById('o-total').textContent=fmt(t)+' ریال';
+}
+
+function checkCredit() {
+  const custId=parseInt(document.getElementById('o-cust')?.value);
+  const pay=document.getElementById('o-pay')?.value;
+  const warn=document.getElementById('credit-warn');
+  if(custId&&pay==='نسیه') {
+    const existing=nesieQty(custId);
+    const newQty=qtyValues.reduce((a,b)=>a+b,0);
+    if(existing+newQty>4) {
+      warn.style.display='flex';
+      warn.textContent=`⚠️ سقف نسیه رد می‌شود! فعلی: ${existing} + جدید: ${newQty} = ${existing+newQty} (حداکثر ۴)`;
+      return;
+    }
+  }
+  warn.style.display='none';
+}
+
+async function submitOrder() {
+  const date=document.getElementById('o-date').value;
+  const viz=document.getElementById('o-viz').value;
+  const custId=parseInt(document.getElementById('o-cust').value);
+  const pay=document.getElementById('o-pay').value;
+  if(!date||!viz||!custId){alert('لطفاً همه فیلدها را پر کنید');return;}
+  if(qtyValues.every(q=>q===0)){alert('حداقل یک کالا انتخاب کنید');return;}
+
+  const btn=document.getElementById('submit-order-btn');
+  btn.textContent='در حال ثبت...'; btn.disabled=true;
+
+  const {error}=await sb.from('orders').insert({
+    date, viz, customer_id:custId, qty:qtyValues, payment_type:pay, status:'در انتظار'
+  });
+
+  btn.textContent='✅ ثبت سفارش'; btn.disabled=false;
+
+  if(error){alert('خطا: '+error.message);return;}
+  qtyValues=[0,0,0,0,0,0];
+  renderQtyInputs();
+  await loadAllData();
+  alert('✅ سفارش ثبت شد!');
+}
+
+async function loadOrders() { await loadAllData(); renderOrdersList(); }
+
+function renderOrdersList() {
+  document.getElementById('orders-list').innerHTML = orders.map(o=>{
+    const c=customers.find(x=>x.id===o.customer_id);
+    const items=o.qty.map((q,i)=>q>0?`${PRODUCTS[i].name}×${q}`:'').filter(Boolean).join(' · ');
+    return `<div class="list-item">
+      <div class="list-icon" style="background:rgba(0,122,255,.1)">📦</div>
+      <div class="list-body">
+        <div class="list-title">${c?c.name:'?'}</div>
+        <div class="list-sub">${o.date||''} · ${o.viz||''}<br>${items}</div>
+      </div>
+      <div class="list-right">
+        <div class="list-amount" style="color:var(--accent)">${fmt(orderTotal(o.qty))}</div>
+        ${statusBadge(o.status)}
+        ${o.status==='در انتظار'?`<button class="btn btn-sm btn-green" onclick="deliverOrder(${o.id})">تحویل</button>`:''}
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty"><div class="e-ico">📭</div><p>سفارشی ندارید</p></div>';
+}
+
+async function deliverOrder(id) {
+  await sb.from('orders').update({status:'تحویل داده شد'}).eq('id',id);
+  await loadAllData();
+  renderOrdersList();
+}
+
+// ══ DELIVERY ══
+async function loadDelivery() { await loadAllData(); renderDelivery(); }
+
+function renderDelivery() {
+  const pending=orders.filter(o=>o.status==='در انتظار');
+  const done=orders.filter(o=>o.status==='تحویل داده شد');
+  document.getElementById('d-pending').textContent=pending.length;
+  document.getElementById('d-done').textContent=done.length;
+
+  document.getElementById('delivery-list').innerHTML=pending.map(o=>{
+    const c=customers.find(x=>x.id===o.customer_id);
+    const items=o.qty.map((q,i)=>q>0?`${PRODUCTS[i].name} ×${q}`:'').filter(Boolean).join('، ');
+    return `<div class="list-item">
+      <div class="list-icon" style="background:rgba(52,199,89,.1)">🏪</div>
+      <div class="list-body">
+        <div class="list-title">${c?c.name:'?'}</div>
+        <div class="list-sub">
+          ${c?`📍 ${c.addr}`:''}
+          ${c&&c.zone?`· <span class="badge b-blue">${c.zone}</span>`:''}
+          ${c&&c.street?`· ${c.street}`:''}
+          <br>${items} · ${o.payment_type==='نقد'?'<span class="badge b-green">نقد</span>':'<span class="badge b-blue">نسیه</span>'}
+        </div>
+      </div>
+      <div class="list-right">
+        <div class="list-amount" style="color:var(--accent)">${fmt(orderTotal(o.qty))}</div>
+        <button class="btn btn-sm btn-green" onclick="deliverItem(${o.id})">✅ تحویل</button>
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty"><div class="e-ico">🎉</div><p>همه سفارشات تحویل داده شده</p></div>';
+}
+
+async function deliverItem(id) {
+  await sb.from('orders').update({status:'تحویل داده شد'}).eq('id',id);
+  await loadAllData();
+  renderDelivery();
+}
+
+// ══ ACCOUNTS ══
+function renderAccounts() {
+  const active=customers.filter(c=>c.active);
+  const totalBal=active.reduce((s,c)=>s+Math.max(0,custBalance(c.id)),0);
+  const nesie=orders.filter(o=>o.payment_type==='نسیه'&&o.status==='تحویل داده شد').reduce((s,o)=>s+orderTotal(o.qty),0);
+  document.getElementById('a-total').textContent=fmt(Math.round(totalBal/1000000));
+  document.getElementById('a-nesie').textContent=fmt(Math.round(nesie/1000000));
+
+  document.getElementById('accounts-list').innerHTML=active.map(c=>{
+    const buy=custBuy(c.id),paid=custPaid(c.id),bal=buy-paid;
+    const nq=nesieQty(c.id);
+    return `<div class="list-item">
+      <div class="list-icon" style="background:rgba(175,82,222,.1)">🏪</div>
+      <div class="list-body">
+        <div class="list-title">${c.name} ${creditBadge(c.credit)}</div>
+        <div class="list-sub">خرید: ${fmt(buy)} · پرداخت: ${fmt(paid)}<br>نسیه: ${nq}/۴ بسته</div>
+      </div>
+      <div class="list-right">
+        <div class="list-amount" style="color:${bal>0?'var(--red)':'var(--green)'}">${fmt(Math.abs(bal))}</div>
+        <span class="badge ${bal>0?'b-red':'b-green'}">${bal>0?'بدهکار':'تسویه'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function submitPayment() {
+  const custId=parseInt(document.getElementById('pay-cust').value);
+  const amount=parseInt(document.getElementById('pay-amt').value);
+  const type=document.getElementById('pay-type').value;
+  const date=document.getElementById('pay-date').value;
+  if(!custId||!amount||!date){alert('همه فیلدها الزامی است');return;}
+  const {error}=await sb.from('payments').insert({customer_id:custId,amount,payment_type:type,date});
+  if(error){alert('خطا: '+error.message);return;}
+  document.getElementById('pay-amt').value='';
+  document.getElementById('pay-date').value='';
+  await loadAllData();
+  renderAccounts();
+  alert('✅ پرداخت ثبت شد!');
+}
+
+// ══ MORE ══
+function renderMore() { renderRanking(); renderPerf(); renderCustMini(); }
+
+function renderRanking() {
+  const today='۱۴۰۴/۰۲/۱۹';
+  const active=customers.filter(c=>c.active);
+  const ranked=active.map(c=>{
+    const days=shamsiDays(c.start_date,today);
+    const qty=custQty(c.id);
+    const rate=qty/days;
+    return{c,days,qty,rate};
+  }).sort((a,b)=>b.rate-a.rate);
+  const maxRate=ranked[0]?.rate||1;
+  const avg=ranked.reduce((s,x)=>s+x.rate,0)/(ranked.length||1);
+  document.getElementById('avg-all').textContent=avg>0?`هر ${Math.round(1/avg)} روز ۱ بسته`:'-';
+  document.getElementById('ranking-list').innerHTML=ranked.map((x,i)=>{
+    const pct=Math.round(x.rate/maxRate*100);
+    const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';
+    return`<div class="rank-item">
+      <div class="rank-top">
+        <div class="rank-num ${rc}">${i+1}</div>
+        <div class="rank-name">${x.c.name}</div>
+        <div class="rank-rate">${x.rate>0?`هر ${Math.round(1/x.rate)} روز ۱ بسته`:'بدون خرید'}</div>
+      </div>
+      <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <div style="font-size:11px;color:var(--text2);margin-top:6px">${fmt(x.qty)} بسته در ${fmt(x.days)} روز · ${creditBadge(x.c.credit)}</div>
+    </div>`;
+  }).join('')||'<div class="empty"><p>مشتری فعالی وجود ندارد</p></div>';
+}
+
+function renderPerf() {
+  const vizs=[{name:'خانم فرزین',color:'var(--accent)'},{name:'خانم قلی‌زاده',color:'var(--blue)'}];
+  const totalSales=orders.reduce((s,o)=>s+orderTotal(o.qty),0)||1;
+  document.getElementById('perf-section').innerHTML=vizs.map(v=>{
+    const ords=orders.filter(o=>o.viz===v.name);
+    const sales=ords.reduce((s,o)=>s+orderTotal(o.qty),0);
+    const pct=Math.round(sales/totalSales*100);
+    return`<div style="margin-bottom:14px">
+      <div class="perf-row">
+        <div class="perf-label">${v.name}</div>
+        <div class="perf-bar-wrap"><div class="bar"><div class="bar-fill" style="width:${pct}%;background:${v.color}"></div></div></div>
+        <div class="perf-val" style="color:${v.color}">${pct}٪</div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);padding-right:70px">${ords.length} سفارش · ${fmt(Math.round(sales/1000000))} م.ریال</div>
+    </div>`;
+  }).join('');
+}
+
+function renderCustMini() {
+  document.getElementById('cust-mini-list').innerHTML=customers.map(c=>`
+    <div class="qty-row">
+      <div><div class="qty-name">${c.name}</div><div class="qty-price">${c.zone||'-'} · ${c.street||'-'}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        ${c.active?'<span class="badge b-green">فعال</span>':'<span class="badge b-gray">قطع</span>'}
+        ${creditBadge(c.credit)}
+      </div>
+    </div>`).join('');
+}
+
+// ══ ADD CUSTOMER ══
+function openAddCustomer(){document.getElementById('cust-modal').classList.add('open');}
+function closeCustModal(){document.getElementById('cust-modal').classList.remove('open');}
+
+async function addCustomer() {
+  const name=document.getElementById('cn-name').value;
+  const start=document.getElementById('cn-start').value;
+  if(!name||!start){alert('نام و تاریخ شروع الزامی است');return;}
+  const {error}=await sb.from('customers').insert({
+    name, addr:document.getElementById('cn-addr').value,
+    street:document.getElementById('cn-street').value,
+    zone:document.getElementById('cn-zone').value,
+    phone:document.getElementById('cn-phone').value,
+    coords:document.getElementById('cn-coords').value,
+    start_date:start, credit:document.getElementById('cn-credit').value,
+    active:true, note:document.getElementById('cn-note').value
+  });
+  if(error){alert('خطا: '+error.message);return;}
+  closeCustModal();
+  await loadAllData();
+  renderCustMini();
+  alert('✅ مشتری ثبت شد!');
+}
+
+// ══ RETURNS ══
+function buildRetQty() {
+  document.getElementById('ret-qty-inputs').innerHTML=PRODUCTS.map((p,i)=>`
+    <div class="qty-row">
+      <div><div class="qty-name">${p.name}</div></div>
+      <div class="qty-ctrl">
+        <button class="qty-btn minus" onclick="changeRetQty(${i},-1)">−</button>
+        <span class="qty-num" id="rqty-${i}">0</span>
+        <button class="qty-btn plus" onclick="changeRetQty(${i},1)">+</button>
+      </div>
+    </div>`).join('');
+}
+function changeRetQty(i,d){retQty[i]=Math.max(0,retQty[i]+d);document.getElementById('rqty-'+i).textContent=retQty[i];}
+
+async function submitReturn() {
+  const custId=parseInt(document.getElementById('ret-cust').value);
+  const date=document.getElementById('ret-date').value;
+  const reason=document.getElementById('ret-reason').value;
+  if(!custId||!date){alert('همه فیلدها الزامی است');return;}
+  if(retQty.every(q=>q===0)){alert('حداقل یک کالا انتخاب کنید');return;}
+  const {error}=await sb.from('returns').insert({customer_id:custId,date,reason,qty:retQty});
+  if(error){alert('خطا: '+error.message);return;}
+  retQty=[0,0,0,0,0,0];
+  buildRetQty();
+  await loadAllData();
+  alert('✅ مرجوعی ثبت شد');
+}
+
+// ══ ROLE ══
+function openRoleModal(){document.getElementById('role-modal').classList.add('open');}
+function closeRoleModal(){document.getElementById('role-modal').classList.remove('open');}
+const roleNames={manager:'مدیر سیستم',farzin:'خانم فرزین',gholi:'خانم قلی‌زاده',bakhshi:'آقای بخشی'};
+function setRole(role,el){
+  currentRole=role;
+  document.getElementById('role-label').textContent=roleNames[role];
+  document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+document.getElementById('role-modal').addEventListener('click',function(e){if(e.target===this)closeRoleModal();});
+document.getElementById('cust-modal').addEventListener('click',function(e){if(e.target===this)closeCustModal();});
+
+// ══ START ══
+initDB();
+</script>
+</body>
+</html>
